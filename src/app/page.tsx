@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import JobDescriptionAnalyzer from "@/components/JobDescriptionAnalyzer";
 
 export default function Home() {
   const [jobDescription, setJobDescription] = useState("");
@@ -260,6 +261,9 @@ export default function Home() {
           <p className="mt-6 text-sm text-indigo-200">
             CareerPilot AI · Your career, your direction.
           </p>
+          <div className="mx-auto mt-10 max-w-3xl text-left">
+            <JobDescriptionAnalyzer />
+          </div>
         </div>
       </section>
 
