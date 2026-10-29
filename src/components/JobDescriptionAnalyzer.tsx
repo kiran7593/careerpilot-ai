@@ -8,6 +8,33 @@ import {
     type SkillMatch,
 } from "@/lib/jobAnalyzer";
 
+function getLearningRecommendation(skillName: string): string {
+  const recommendations: Record<string, string> = {
+    JavaScript: "Practice variables, functions, arrays, objects, and asynchronous programming.",
+    TypeScript: "Learn types, interfaces, type narrowing, and how to type React components.",
+    HTML: "Practice semantic HTML, accessible forms, and page structure.",
+    CSS: "Build responsive layouts using Flexbox, Grid, and media queries.",
+    React: "Practice components, props, state, hooks, and handling user interactions.",
+    "Next.js": "Learn App Router, layouts, server and client components, and data fetching.",
+    Python: "Practice Python syntax, functions, collections, and small automation scripts.",
+    SQL: "Practice SELECT queries, JOINs, filtering, grouping, and database relationships.",
+    "Node.js": "Learn modules, asynchronous code, environment variables, and server-side JavaScript.",
+    Express: "Build REST endpoints, middleware, request validation, and error handling.",
+    "REST APIs": "Practice HTTP methods, status codes, JSON responses, and API error handling.",
+    PostgreSQL: "Practice table design, constraints, joins, indexes, and parameterized queries.",
+    SQLite: "Build a small application that stores and retrieves data with SQL.",
+    Git: "Practice branching, commits, merging, and resolving conflicts.",
+    GitHub: "Learn pull requests, repository documentation, and GitHub Actions.",
+    Docker: "Learn images, containers, Dockerfiles, and environment configuration.",
+    AWS: "Explore core cloud concepts, IAM permissions, and deploying a small application.",
+  };
+
+  return (
+    recommendations[skillName] ??
+    `Study the fundamentals of ${skillName} and build a small project to practice it.`
+  );
+}
+
 export default function JobDescriptionAnalyzer() {
     const [jobTitle, setJobTitle] = useState("");
     const [jobDescription, setJobDescription] = useState("");
@@ -200,6 +227,32 @@ export default function JobDescriptionAnalyzer() {
                                             You&apos;ve matched all detected skills!
                                         </p>
                                     )}
+                                </div>
+                            </div>
+                        )}
+
+                        {skillGap && skillGap.missingSkills.length > 0 && (
+                            <div className="rounded-xl border border-sky-400/30 bg-sky-500/10 p-5">
+                                <h3 className="text-lg font-semibold text-sky-200">
+                                    Your personalized learning plan
+                                </h3>
+                                <p className="mt-2 text-sm text-slate-300">
+                                    Focus on these skills to strengthen your fit for this role.
+                                </p>
+                                <div className="mt-4 space-y-3">
+                                    {skillGap.missingSkills.map((skill, index) => (
+                                        <div
+                                            key={skill.name}
+                                            className="rounded-lg border border-slate-700 bg-slate-900/60 p-4"
+                                        >
+                                            <h4 className="font-medium text-white">
+                                                {index + 1}. Learn {skill.name}
+                                            </h4>
+                                            <p className="mt-1 text-sm text-slate-300">
+                                                {getLearningRecommendation(skill.name)}
+                                            </p>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
