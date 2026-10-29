@@ -114,3 +114,43 @@ export function analyzeJobDescription(description: string): SkillMatch[] {
     ),
   ).map(({ name, category }) => ({ name, category }));
 }
+
+export type SkillGapResult = {
+  matchingSkills: SkillMatch[];
+  missingSkills: SkillMatch[];
+  matchPercentage: number;
+};
+
+export function compareSkills(
+  jobSkills: SkillMatch[],
+  userSkillsText: string,
+): SkillGapResult {
+  const matchingUserSkills = SKILL_CATALOG.filter((skill) =>
+    skill.keywords.some((keyword) =>
+      containsKeyword(userSkillsText, keyword),
+    ),
+  );
+
+  const matchingNames = new Set(
+    matchingUserSkills.map((skill) => skill.name),
+  );
+
+  const matchingSkills = jobSkills.filter((skill) =>
+    matchingNames.has(skill.name),
+  );
+
+  const missingSkills = jobSkills.filter(
+    (skill) => !matchingNames.has(skill.name),
+  );
+
+  const matchPercentage =
+    jobSkills.length === 0
+      ? 0
+      : Math.round((matchingSkills.length / jobSkills.length) * 100);
+
+  return {
+    matchingSkills,
+    missingSkills,
+    matchPercentage,
+  };
+}

@@ -3,15 +3,19 @@
 import { useState } from "react";
 import {
     analyzeJobDescription,
+    compareSkills,
+    type SkillGapResult,
     type SkillMatch,
 } from "@/lib/jobAnalyzer";
 
 export default function JobDescriptionAnalyzer() {
     const [jobTitle, setJobTitle] = useState("");
     const [jobDescription, setJobDescription] = useState("");
+    const [userSkills, setUserSkills] = useState("");
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [detectedSkills, setDetectedSkills] = useState<SkillMatch[]>([]);
+    const [skillGap, setSkillGap] = useState<SkillGapResult | null>(null);
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -29,7 +33,9 @@ export default function JobDescriptionAnalyzer() {
             return;
         }
 
-        setDetectedSkills(analyzeJobDescription(jobDescription));
+        const skills = analyzeJobDescription(jobDescription);
+        setDetectedSkills(skills);
+        setSkillGap(compareSkills(skills, userSkills));
 
         setSuccess("Job description analyzed successfully.");
     }
@@ -65,6 +71,28 @@ export default function JobDescriptionAnalyzer() {
                         placeholder="e.g. Junior Front-End Developer"
                         className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20"
                     />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor="user-skills"
+                        className="mb-2 block text-sm font-medium text-slate-200"
+                    >
+                        Your current skills
+                    </label>
+
+                    <textarea
+                        id="user-skills"
+                        value={userSkills}
+                        onChange={(event) => setUserSkills(event.target.value)}
+                        placeholder="e.g. React, TypeScript, JavaScript, HTML, CSS"
+                        rows={3}
+                        className="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 leading-7 text-white outline-none transition placeholder:text-slate-500 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20"
+                    />
+
+                    <p className="mt-2 text-sm text-slate-400">
+                        Separate your skills with commas.
+                    </p>
                 </div>
 
                 <div>
@@ -112,6 +140,69 @@ export default function JobDescriptionAnalyzer() {
                                 Target role: {jobTitle.trim()}
                             </p>
                         </div>
+
+                        {skillGap && (
+                            <div className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 p-4">
+                                <p className="text-sm text-indigo-200">Your skill match</p>
+                                <p className="mt-1 text-3xl font-bold text-white">
+                                    {skillGap.matchPercentage}%
+                                </p>
+                                <p className="mt-1 text-sm text-slate-300">
+                                    of the detected job skills match your current skills
+                                </p>
+                            </div>
+                        )}
+
+
+                        {skillGap && (
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4">
+                                    <h4 className="font-semibold text-emerald-300">
+                                        Matching skills ({skillGap.matchingSkills.length})
+                                    </h4>
+
+                                    {skillGap.matchingSkills.length > 0 ? (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {skillGap.matchingSkills.map((skill) => (
+                                                <span
+                                                    key={skill.name}
+                                                    className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-sm text-emerald-100"
+                                                >
+                                                    {skill.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-2 text-sm text-slate-400">
+                                            No matching skills found yet.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-4">
+                                    <h4 className="font-semibold text-amber-300">
+                                        Skills to develop ({skillGap.missingSkills.length})
+                                    </h4>
+
+                                    {skillGap.missingSkills.length > 0 ? (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {skillGap.missingSkills.map((skill) => (
+                                                <span
+                                                    key={skill.name}
+                                                    className="rounded-full bg-amber-500/15 px-3 py-1.5 text-sm text-amber-100"
+                                                >
+                                                    {skill.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-2 text-sm text-slate-400">
+                                            You&apos;ve matched all detected skills!
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         {detectedSkills.length > 0 ? (
                             <div className="space-y-4">
