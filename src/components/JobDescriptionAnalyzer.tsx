@@ -9,6 +9,7 @@ import {
     type SkillMatch,
 } from "@/lib/jobAnalyzer";
 import jsPDF from "jspdf";
+import ProgressChart from "@/components/ProgressChart";
 
 function getLearningRecommendation(skillName: string): string {
     const recommendations: Record<string, string> = {
@@ -105,9 +106,22 @@ export default function JobDescriptionAnalyzer() {
         const storedAnalyses = localStorage.getItem("careerpilot-saved-analyses");
 
         if (storedAnalyses) {
+            const parsedAnalyses = JSON.parse(storedAnalyses) as SavedAnalysis[];
+
+            const migratedAnalyses = parsedAnalyses.map((analysis) => {
+                const now = new Date().toISOString();
+
+                return {
+                    ...analysis,
+                    createdAt: analysis.createdAt ?? now,
+                    updatedAt: analysis.updatedAt ?? analysis.createdAt ?? now,
+                };
+            });
+
             // eslint-disable-next-line react-hooks/set-state-in-effect -- Restore browser data after mounting.
-            setSavedAnalyses(JSON.parse(storedAnalyses) as SavedAnalysis[]);
+            setSavedAnalyses(migratedAnalyses);
         }
+
         setIsLoaded(true);
     }, []);
 
@@ -249,6 +263,12 @@ export default function JobDescriptionAnalyzer() {
             return;
         }
 
+        const now = new Date().toISOString();
+
+        const existingAnalysis = savedAnalyses.find(
+            (analysis) => analysis.id === editingAnalysisId,
+        );
+
         const newAnalysis: SavedAnalysis = {
             id: editingAnalysisId ?? crypto.randomUUID(),
             jobTitle: jobTitle.trim(),
@@ -257,6 +277,8 @@ export default function JobDescriptionAnalyzer() {
             matchingSkills: skillGap.matchingSkills,
             missingSkills: skillGap.missingSkills,
             matchPercentage: skillGap.matchPercentage,
+            createdAt: existingAnalysis?.createdAt ?? now,
+            updatedAt: now,
         };
 
         setSavedAnalyses((previousAnalyses) => {
@@ -590,6 +612,18 @@ export default function JobDescriptionAnalyzer() {
                 </button>
             </form>
 
+            <div className="mt-10 rounded-xl border border-slate-700 bg-slate-900 p-6">
+                <h3 className="mb-2 text-xl font-semibold text-white">
+                    Job Match Progress
+                </h3>
+
+                <p className="mb-6 text-sm text-slate-400">
+                    Track how your skill match changes across your saved job analyses.
+                </p>
+
+                <ProgressChart analyses={savedAnalyses} />
+            </div>
+
             {savedAnalyses.length > 0 && (
                 <div className="mt-8 border-t border-slate-700 pt-6">
                     <h3 className="text-xl font-semibold text-white">
@@ -642,6 +676,18 @@ export default function JobDescriptionAnalyzer() {
                                     {analysis.matchingSkills.length} matching skills ·{" "}
                                     {analysis.missingSkills.length} skills to develop
                                 </p>
+
+                                <div className="mt-3 space-y-1 text-xs text-slate-500">
+                                    <p>
+                                        Created:{" "}
+                                        {new Date(analysis.createdAt).toLocaleDateString()}
+                                    </p>
+
+                                    <p>
+                                        Last updated:{" "}
+                                        {new Date(analysis.updatedAt).toLocaleDateString()}
+                                    </p>
+                                </div>
                             </div>
                         ))}
                     </div>
