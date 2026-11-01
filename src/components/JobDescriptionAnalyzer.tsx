@@ -320,49 +320,57 @@ export default function JobDescriptionAnalyzer() {
                             </div>
                         )}
 
+
                         {detectedSkills.length > 0 ? (
-                            <div className="space-y-4">
-                                {(
-                                    [
-                                        "Languages",
-                                        "Frameworks",
-                                        "Backend & Data",
-                                        "Tools",
-                                    ] as const
-                                ).map((category) => {
-                                    const categorySkills = detectedSkills.filter(
-                                        (skill) => skill.category === category,
-                                    );
+                            <details className="rounded-xl border border-indigo-400/20 bg-slate-900/40 p-4">
+                                <summary className="cursor-pointer font-medium text-indigo-200 transition hover:text-indigo-100">
+                                    Detected skills by category ({detectedSkills.length})
+                                </summary>
 
-                                    if (categorySkills.length === 0) {
-                                        return null;
-                                    }
+                                <div className="mt-4 space-y-4">
+                                    {(
+                                        [
+                                            "Languages",
+                                            "Frameworks",
+                                            "Backend & Data",
+                                            "Tools",
+                                        ] as const
+                                    ).map((category) => {
+                                        const categorySkills = detectedSkills.filter(
+                                            (skill) => skill.category === category,
+                                        );
 
-                                    return (
-                                        <div key={category}>
-                                            <h4 className="mb-2 text-sm font-medium text-indigo-300">
-                                                {category}
-                                            </h4>
-                                            <div className="flex flex-wrap gap-2">
-                                                {categorySkills.map((skill) => (
-                                                    <span
-                                                        key={skill.name}
-                                                        className="rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1.5 text-sm text-indigo-100"
-                                                    >
-                                                        {skill.name}
-                                                    </span>
-                                                ))}
+                                        if (categorySkills.length === 0) {
+                                            return null;
+                                        }
+
+                                        return (
+                                            <div key={category}>
+                                                <h4 className="mb-2 text-sm font-medium text-indigo-300">
+                                                    {category}
+                                                </h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {categorySkills.map((skill) => (
+                                                        <span
+                                                            key={skill.name}
+                                                            className="rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1.5 text-sm text-indigo-100"
+                                                        >
+                                                            {skill.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </details>
                         ) : (
                             <p className="text-sm leading-6 text-slate-400">
                                 No skills from our current catalog were detected. Try including
                                 specific technologies such as React, TypeScript, or Node.js.
                             </p>
                         )}
+
                     </div>
                 )}
 
