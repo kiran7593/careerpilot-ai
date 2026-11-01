@@ -96,6 +96,7 @@ export default function JobDescriptionAnalyzer() {
     const [detectedSkills, setDetectedSkills] = useState<SkillMatch[]>([]);
     const [skillGap, setSkillGap] = useState<SkillGapResult | null>(null);
     const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
+    const [searchQuery, setSearchQuery] = useState("");
     const [editingAnalysisId, setEditingAnalysisId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -178,6 +179,10 @@ export default function JobDescriptionAnalyzer() {
         );
     }
 
+    const filteredAnalyses = savedAnalyses.filter((analysis) =>
+        analysis.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+
     function handleDeleteAnalysis(id: string) {
         setSavedAnalyses((previousAnalyses) =>
             previousAnalyses.filter((analysis) => analysis.id !== id),
@@ -189,7 +194,7 @@ export default function JobDescriptionAnalyzer() {
         setJobTitle(analysis.jobTitle);
         setJobDescription(analysis.jobDescription ?? "");
         setUserSkills(analysis.userSkills ?? "");
-        
+
         setDetectedSkills(
             analyzeJobDescription(analysis.jobDescription),
         );
@@ -483,8 +488,16 @@ export default function JobDescriptionAnalyzer() {
                         Saved Job Analyses ({savedAnalyses.length})
                     </h3>
 
+                    <input
+                        type="text"
+                        placeholder="Search saved analyses..."
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20"
+                    />
+
                     <div className="mt-4 space-y-3">
-                        {savedAnalyses.map((analysis) => (
+                        {filteredAnalyses.map((analysis) => (
                             <div
                                 key={analysis.id}
                                 className="rounded-xl border border-slate-700 bg-slate-950 p-4"
