@@ -124,6 +124,8 @@ export type SkillGapResult = {
 export type SavedAnalysis = {
   id: string;
   jobTitle: string;
+  jobDescription: string;
+  userSkills: string;
   matchingSkills: SkillMatch[];
   missingSkills: SkillMatch[];
   matchPercentage: number;

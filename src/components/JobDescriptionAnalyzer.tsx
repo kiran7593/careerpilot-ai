@@ -96,6 +96,7 @@ export default function JobDescriptionAnalyzer() {
     const [detectedSkills, setDetectedSkills] = useState<SkillMatch[]>([]);
     const [skillGap, setSkillGap] = useState<SkillGapResult | null>(null);
     const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
+    const [editingAnalysisId, setEditingAnalysisId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
@@ -150,25 +151,57 @@ export default function JobDescriptionAnalyzer() {
         }
 
         const newAnalysis: SavedAnalysis = {
-            id: crypto.randomUUID(),
+            id: editingAnalysisId ?? crypto.randomUUID(),
             jobTitle: jobTitle.trim(),
+            jobDescription,
+            userSkills,
             matchingSkills: skillGap.matchingSkills,
             missingSkills: skillGap.missingSkills,
             matchPercentage: skillGap.matchPercentage,
         };
 
-        setSavedAnalyses((previousAnalyses) => [
-            ...previousAnalyses,
-            newAnalysis,
-        ]);
+        setSavedAnalyses((previousAnalyses) => {
+            if (editingAnalysisId) {
+                return previousAnalyses.map((analysis) =>
+                    analysis.id === editingAnalysisId ? newAnalysis : analysis,
+                );
+            }
 
-        setSuccess("Analysis saved successfully.");
+            return [...previousAnalyses, newAnalysis];
+        });
+
+        setEditingAnalysisId(null);
+        setSuccess(
+            editingAnalysisId
+                ? "Analysis updated successfully."
+                : "Analysis saved successfully.",
+        );
     }
 
     function handleDeleteAnalysis(id: string) {
         setSavedAnalyses((previousAnalyses) =>
             previousAnalyses.filter((analysis) => analysis.id !== id),
         );
+    }
+
+    function handleEditAnalysis(analysis: SavedAnalysis) {
+        setEditingAnalysisId(analysis.id);
+        setJobTitle(analysis.jobTitle);
+        setJobDescription(analysis.jobDescription ?? "");
+        setUserSkills(analysis.userSkills ?? "");
+        
+        setDetectedSkills(
+            analyzeJobDescription(analysis.jobDescription),
+        );
+
+        setSkillGap({
+            matchingSkills: analysis.matchingSkills,
+            missingSkills: analysis.missingSkills,
+            matchPercentage: analysis.matchPercentage,
+        });
+
+        setError("");
+        setSuccess("Saved analysis loaded. You can now edit it.");
     }
 
     return (
@@ -290,7 +323,7 @@ export default function JobDescriptionAnalyzer() {
                                 onClick={handleSaveAnalysis}
                                 className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
                             >
-                                Save Analysis
+                                {editingAnalysisId ? "Update Analysis" : "Save Analysis"}
                             </button>
                         )}
 
@@ -465,6 +498,14 @@ export default function JobDescriptionAnalyzer() {
                                         <span className="text-lg font-bold text-indigo-300">
                                             {analysis.matchPercentage}%
                                         </span>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleEditAnalysis(analysis)}
+                                            className="rounded-lg border border-indigo-400/30 px-3 py-1.5 text-sm font-medium text-indigo-300 transition hover:bg-indigo-500/10"
+                                        >
+                                            Edit
+                                        </button>
 
                                         <button
                                             type="button"
