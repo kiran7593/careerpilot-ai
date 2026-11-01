@@ -10,6 +10,7 @@ import {
 } from "@/lib/jobAnalyzer";
 import jsPDF from "jspdf";
 import ProgressChart from "@/components/ProgressChart";
+import SkillRoadmap from "@/components/SkillRoadmap";
 
 function getLearningRecommendation(skillName: string): string {
     const recommendations: Record<string, string> = {
@@ -646,6 +647,8 @@ export default function JobDescriptionAnalyzer() {
 
                 <ProgressChart analyses={savedAnalyses} />
             </div>
+
+            <SkillRoadmap analyses={savedAnalyses} />
 
             {savedAnalyses.length > 0 && (
                 <div className="mt-8 border-t border-slate-700 pt-6">
