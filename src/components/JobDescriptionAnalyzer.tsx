@@ -8,6 +8,7 @@ import {
     type SkillGapResult,
     type SkillMatch,
 } from "@/lib/jobAnalyzer";
+import jsPDF from "jspdf";
 
 function getLearningRecommendation(skillName: string): string {
     const recommendations: Record<string, string> = {
@@ -144,6 +145,103 @@ export default function JobDescriptionAnalyzer() {
         setSkillGap(analysisResult);
 
         setSuccess("Job description analyzed successfully.");
+    }
+
+    function handleExportPdf() {
+        if (!skillGap) {
+            return;
+        }
+
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        let y = 20;
+
+        function addText(
+            text: string,
+            fontSize = 10,
+            indent = 0,
+        ) {
+            doc.setFontSize(fontSize);
+
+            const lines = doc.splitTextToSize(
+                text,
+                pageWidth - 30 - indent,
+            );
+
+            for (const line of lines) {
+                if (y > pageHeight - 20) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                doc.text(line, 15 + indent, y);
+                y += 6;
+            }
+        }
+
+        function addHeading(text: string) {
+            y += 5;
+            doc.setFont("helvetica", "bold");
+            addText(text, 13);
+            doc.setFont("helvetica", "normal");
+            y += 2;
+        }
+
+        // Report title
+        doc.setFont("helvetica", "bold");
+        addText("CareerPilot AI - Job Analysis Report", 18);
+        doc.setFont("helvetica", "normal");
+
+        y += 3;
+        addText(`Target Position: ${jobTitle || "Untitled Position"}`);
+        addText(`Date: ${new Date().toLocaleDateString()}`);
+
+        // Match percentage
+        addHeading("Overall Skill Match");
+        addText(`${skillGap.matchPercentage}%`);
+
+        // Matching skills
+        addHeading("Matching Skills");
+
+        if (skillGap.matchingSkills.length > 0) {
+            skillGap.matchingSkills.forEach((skill) => {
+                addText(`• ${skill.name} (${skill.category})`, 10, 3);
+            });
+        } else {
+            addText("No matching skills identified.");
+        }
+
+        // Missing skills
+        addHeading("Skills to Develop");
+
+        if (skillGap.missingSkills.length > 0) {
+            skillGap.missingSkills.forEach((skill) => {
+                addText(`• ${skill.name} (${skill.category})`, 10, 3);
+            });
+        } else {
+            addText("No missing skills identified.");
+        }
+
+        // Personalized learning recommendations
+        addHeading("Personalized Learning Plan");
+
+        skillGap.missingSkills.forEach((skill) => {
+            addText(skill.name, 11);
+            addText(getLearningRecommendation(skill.name), 10, 3);
+
+            const resource = LEARNING_RESOURCES[skill.name];
+
+            if (resource) {
+                addText(`Resource: ${resource.label}`, 10, 3);
+                addText(resource.url, 9, 3);
+            }
+
+            y += 3;
+        });
+
+        doc.save("careerpilot-job-analysis.pdf");
     }
 
     function handleSaveAnalysis() {
@@ -323,13 +421,23 @@ export default function JobDescriptionAnalyzer() {
                         )}
 
                         {skillGap && (
-                            <button
-                                type="button"
-                                onClick={handleSaveAnalysis}
-                                className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
-                            >
-                                {editingAnalysisId ? "Update Analysis" : "Save Analysis"}
-                            </button>
+                            <div className="flex flex-wrap gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleSaveAnalysis}
+                                    className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+                                >
+                                    {editingAnalysisId ? "Update Analysis" : "Save Analysis"}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleExportPdf}
+                                    className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+                                >
+                                    Export PDF
+                                </button>
+                            </div>
                         )}
 
                         {skillGap && (
