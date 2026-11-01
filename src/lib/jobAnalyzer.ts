@@ -121,6 +121,14 @@ export type SkillGapResult = {
   matchPercentage: number;
 };
 
+export type SavedAnalysis = {
+  id: string;
+  jobTitle: string;
+  matchingSkills: SkillMatch[];
+  missingSkills: SkillMatch[];
+  matchPercentage: number;
+};
+
 export function compareSkills(
   jobSkills: SkillMatch[],
   userSkillsText: string,
