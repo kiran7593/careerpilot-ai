@@ -93,4 +93,18 @@ describe("compareSkills", () => {
     expect(result.matchingSkills).toEqual([]);
     expect(result.missingSkills).toEqual([]);
   });
+  
+  it("recognizes REST APIs as a matching skill", () => {
+    const jobSkills = analyzeJobDescription(
+      "Experience with REST APIs is required.",
+    );
+
+    const result = compareSkills(jobSkills, "REST APIs");
+
+    expect(result.matchingSkills.map((skill) => skill.name)).toEqual([
+      "REST APIs",
+    ]);
+
+    expect(result.missingSkills).toEqual([]);
+  });
 });

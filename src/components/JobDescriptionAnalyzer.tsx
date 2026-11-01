@@ -9,31 +9,82 @@ import {
 } from "@/lib/jobAnalyzer";
 
 function getLearningRecommendation(skillName: string): string {
-  const recommendations: Record<string, string> = {
-    JavaScript: "Practice variables, functions, arrays, objects, and asynchronous programming.",
-    TypeScript: "Learn types, interfaces, type narrowing, and how to type React components.",
-    HTML: "Practice semantic HTML, accessible forms, and page structure.",
-    CSS: "Build responsive layouts using Flexbox, Grid, and media queries.",
-    React: "Practice components, props, state, hooks, and handling user interactions.",
-    "Next.js": "Learn App Router, layouts, server and client components, and data fetching.",
-    Python: "Practice Python syntax, functions, collections, and small automation scripts.",
-    SQL: "Practice SELECT queries, JOINs, filtering, grouping, and database relationships.",
-    "Node.js": "Learn modules, asynchronous code, environment variables, and server-side JavaScript.",
-    Express: "Build REST endpoints, middleware, request validation, and error handling.",
-    "REST APIs": "Practice HTTP methods, status codes, JSON responses, and API error handling.",
-    PostgreSQL: "Practice table design, constraints, joins, indexes, and parameterized queries.",
-    SQLite: "Build a small application that stores and retrieves data with SQL.",
-    Git: "Practice branching, commits, merging, and resolving conflicts.",
-    GitHub: "Learn pull requests, repository documentation, and GitHub Actions.",
-    Docker: "Learn images, containers, Dockerfiles, and environment configuration.",
-    AWS: "Explore core cloud concepts, IAM permissions, and deploying a small application.",
-  };
+    const recommendations: Record<string, string> = {
+        JavaScript: "Practice variables, functions, arrays, objects, and asynchronous programming.",
+        TypeScript: "Learn types, interfaces, type narrowing, and how to type React components.",
+        HTML: "Practice semantic HTML, accessible forms, and page structure.",
+        CSS: "Build responsive layouts using Flexbox, Grid, and media queries.",
+        React: "Practice components, props, state, hooks, and handling user interactions.",
+        "Next.js": "Learn App Router, layouts, server and client components, and data fetching.",
+        Python: "Practice Python syntax, functions, collections, and small automation scripts.",
+        SQL: "Practice SELECT queries, JOINs, filtering, grouping, and database relationships.",
+        "Node.js": "Learn modules, asynchronous code, environment variables, and server-side JavaScript.",
+        Express: "Build REST endpoints, middleware, request validation, and error handling.",
+        "REST APIs": "Practice HTTP methods, status codes, JSON responses, and API error handling.",
+        PostgreSQL: "Practice table design, constraints, joins, indexes, and parameterized queries.",
+        SQLite: "Build a small application that stores and retrieves data with SQL.",
+        Git: "Practice branching, commits, merging, and resolving conflicts.",
+        GitHub: "Learn pull requests, repository documentation, and GitHub Actions.",
+        Docker: "Learn images, containers, Dockerfiles, and environment configuration.",
+        AWS: "Explore core cloud concepts, IAM permissions, and deploying a small application.",
+    };
 
-  return (
-    recommendations[skillName] ??
-    `Study the fundamentals of ${skillName} and build a small project to practice it.`
-  );
+    return (
+        recommendations[skillName] ??
+        `Study the fundamentals of ${skillName} and build a small project to practice it.`
+    );
 }
+
+const LEARNING_RESOURCES: Record<string, { label: string; url: string }> = {
+    JavaScript: {
+        label: "MDN JavaScript Guide",
+        url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
+    },
+    TypeScript: {
+        label: "TypeScript Handbook",
+        url: "https://www.typescriptlang.org/docs/handbook/intro.html",
+    },
+    HTML: {
+        label: "MDN HTML Guide",
+        url: "https://developer.mozilla.org/en-US/docs/Web/HTML",
+    },
+    CSS: {
+        label: "MDN CSS Guide",
+        url: "https://developer.mozilla.org/en-US/docs/Web/CSS",
+    },
+    React: {
+        label: "React Documentation",
+        url: "https://react.dev/learn",
+    },
+    "Next.js": {
+        label: "Next.js Learn",
+        url: "https://nextjs.org/learn",
+    },
+    Docker: {
+        label: "Docker Get Started",
+        url: "https://docs.docker.com/get-started/",
+    },
+    AWS: {
+        label: "AWS Skill Builder",
+        url: "https://skillbuilder.aws/",
+    },
+    "REST APIs": {
+        label: "MDN HTTP Guide",
+        url: "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+    },
+    SQL: {
+        label: "PostgreSQL Tutorial",
+        url: "https://www.postgresql.org/docs/current/tutorial.html",
+    },
+    Git: {
+        label: "Git Documentation",
+        url: "https://git-scm.com/doc",
+    },
+    GitHub: {
+        label: "GitHub Skills",
+        url: "https://skills.github.com/",
+    },
+};
 
 export default function JobDescriptionAnalyzer() {
     const [jobTitle, setJobTitle] = useState("");
@@ -248,9 +299,21 @@ export default function JobDescriptionAnalyzer() {
                                             <h4 className="font-medium text-white">
                                                 {index + 1}. Learn {skill.name}
                                             </h4>
+
                                             <p className="mt-1 text-sm text-slate-300">
                                                 {getLearningRecommendation(skill.name)}
                                             </p>
+
+                                            {LEARNING_RESOURCES[skill.name] && (
+                                                <a
+                                                    href={LEARNING_RESOURCES[skill.name].url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="mt-3 inline-block text-sm font-medium text-sky-300 underline decoration-sky-300/40 underline-offset-4 transition hover:text-sky-200"
+                                                >
+                                                    Explore: {LEARNING_RESOURCES[skill.name].label} ↗
+                                                </a>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
