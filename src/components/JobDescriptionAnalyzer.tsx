@@ -99,6 +99,7 @@ export default function JobDescriptionAnalyzer() {
     const [skillGap, setSkillGap] = useState<SkillGapResult | null>(null);
     const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedAnalysisIds, setSelectedAnalysisIds] = useState<string[]>([]);
     const [editingAnalysisId, setEditingAnalysisId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -303,10 +304,32 @@ export default function JobDescriptionAnalyzer() {
         analysis.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()),
     );
 
+    const selectedAnalyses = savedAnalyses.filter((analysis) =>
+        selectedAnalysisIds.includes(analysis.id),
+    );
+
     function handleDeleteAnalysis(id: string) {
         setSavedAnalyses((previousAnalyses) =>
             previousAnalyses.filter((analysis) => analysis.id !== id),
         );
+
+        setSelectedAnalysisIds((previousIds) =>
+            previousIds.filter((selectedId) => selectedId !== id),
+        );
+    }
+
+    function handleToggleAnalysisSelection(id: string) {
+        setSelectedAnalysisIds((previousIds) => {
+            if (previousIds.includes(id)) {
+                return previousIds.filter((previousId) => previousId !== id);
+            }
+
+            if (previousIds.length >= 2) {
+                return previousIds;
+            }
+
+            return [...previousIds, id];
+        });
     }
 
     function handleEditAnalysis(analysis: SavedAnalysis) {
@@ -644,6 +667,20 @@ export default function JobDescriptionAnalyzer() {
                                 key={analysis.id}
                                 className="rounded-xl border border-slate-700 bg-slate-950 p-4"
                             >
+                                <label className="mb-3 flex items-center gap-2 text-sm text-slate-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedAnalysisIds.includes(analysis.id)}
+                                        onChange={() => handleToggleAnalysisSelection(analysis.id)}
+                                        disabled={
+                                            selectedAnalysisIds.length >= 2 &&
+                                            !selectedAnalysisIds.includes(analysis.id)
+                                        }
+                                        className="h-4 w-4 accent-indigo-500"
+                                    />
+                                    Select for comparison
+                                </label>
+
                                 <div className="flex items-center justify-between gap-4">
                                     <h4 className="font-semibold text-white">
                                         {analysis.jobTitle}
@@ -691,6 +728,71 @@ export default function JobDescriptionAnalyzer() {
                             </div>
                         ))}
                     </div>
+                    {selectedAnalysisIds.length === 2 && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                document
+                                    .getElementById("analysis-comparison")
+                                    ?.scrollIntoView({ behavior: "smooth" });
+                            }}
+                            className="mt-5 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+                        >
+                            Compare Selected Analyses
+                        </button>
+                    )}
+
+                    {selectedAnalyses.length === 2 && (
+                        <div
+                            id="analysis-comparison"
+                            className="mt-8 rounded-xl border border-slate-700 bg-slate-900 p-6"
+                        >
+                            <h3 className="mb-6 text-xl font-semibold text-white">
+                                Analysis Comparison
+                            </h3>
+
+                            <div className="grid gap-6 md:grid-cols-2">
+                                {selectedAnalyses.map((analysis) => (
+                                    <div
+                                        key={analysis.id}
+                                        className="rounded-lg border border-slate-700 bg-slate-950 p-4"
+                                    >
+                                        <h4 className="font-semibold text-white">
+                                            {analysis.jobTitle}
+                                        </h4>
+
+                                        <p className="mt-3 text-2xl font-bold text-indigo-300">
+                                            {analysis.matchPercentage}% match
+                                        </p>
+
+                                        <div className="mt-5">
+                                            <h5 className="font-medium text-emerald-300">
+                                                Matching Skills ({analysis.matchingSkills.length})
+                                            </h5>
+
+                                            <ul className="mt-2 list-inside list-disc text-sm text-slate-300">
+                                                {analysis.matchingSkills.map((skill) => (
+                                                    <li key={skill.name}>{skill.name}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+
+                                        <div className="mt-5">
+                                            <h5 className="font-medium text-amber-300">
+                                                Skills to Develop ({analysis.missingSkills.length})
+                                            </h5>
+
+                                            <ul className="mt-2 list-inside list-disc text-sm text-slate-300">
+                                                {analysis.missingSkills.map((skill) => (
+                                                    <li key={skill.name}>{skill.name}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </section>
