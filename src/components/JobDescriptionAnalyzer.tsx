@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
     analyzeJobDescription,
     compareSkills,
@@ -91,6 +92,8 @@ const LEARNING_RESOURCES: Record<string, { label: string; url: string }> = {
 };
 
 export default function JobDescriptionAnalyzer() {
+    const { data: session, status: sessionStatus } = useSession();
+    const migrationUserId = useRef<string | null>(null);
     const [jobTitle, setJobTitle] = useState("");
     const [jobDescription, setJobDescription] = useState("");
     const [userSkills, setUserSkills] = useState("");
@@ -105,38 +108,108 @@ export default function JobDescriptionAnalyzer() {
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
-        const storedAnalyses = localStorage.getItem("careerpilot-saved-analyses");
-
-        if (storedAnalyses) {
-            const parsedAnalyses = JSON.parse(storedAnalyses) as SavedAnalysis[];
-
-            const migratedAnalyses = parsedAnalyses.map((analysis) => {
-                const now = new Date().toISOString();
-
-                return {
-                    ...analysis,
-                    createdAt: analysis.createdAt ?? now,
-                    updatedAt: analysis.updatedAt ?? analysis.createdAt ?? now,
-                };
-            });
-
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- Restore browser data after mounting.
-            setSavedAnalyses(migratedAnalyses);
-        }
-
-        setIsLoaded(true);
-    }, []);
-
-    useEffect(() => {
-        if (!isLoaded) {
+        if (sessionStatus === "loading") {
             return;
         }
 
-        localStorage.setItem(
-            "careerpilot-saved-analyses",
-            JSON.stringify(savedAnalyses),
-        );
-    }, [savedAnalyses, isLoaded]);
+        if (sessionStatus === "unauthenticated" || !session?.user?.id) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear user-specific data when the session ends.
+            setSavedAnalyses([]);
+            setIsLoaded(true);
+            migrationUserId.current = null;
+            return;
+        }
+
+        const userId = session.user.id;
+
+        if (migrationUserId.current === userId) {
+            return;
+        }
+
+        let cancelled = false;
+        setIsLoaded(false);
+        setSavedAnalyses([]);
+
+        async function loadAnalyses() {
+            try {
+                const response = await fetch("/api/analyses");
+
+                if (!response.ok) {
+                    throw new Error("Unable to load saved analyses.");
+                }
+
+                const databaseAnalyses =
+                    await response.json() as SavedAnalysis[];
+
+                if (cancelled) return;
+
+                const storedAnalyses = localStorage.getItem(
+                    "careerpilot-saved-analyses"
+                );
+
+                const analysesToDisplay = [...databaseAnalyses];
+
+                if (storedAnalyses) {
+                    const browserAnalyses =
+                        JSON.parse(storedAnalyses) as SavedAnalysis[];
+
+                    for (const analysis of browserAnalyses) {
+                        const alreadyMigrated = databaseAnalyses.some(
+                            (saved) => saved.id === analysis.id
+                        );
+
+                        if (alreadyMigrated) continue;
+
+                        const migrationResponse = await fetch("/api/analyses", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(analysis),
+                        });
+
+                        if (!migrationResponse.ok) {
+                            throw new Error(
+                                `Unable to migrate analysis: ${analysis.jobTitle}`
+                            );
+                        }
+
+                        const migratedAnalysis =
+                            await migrationResponse.json() as SavedAnalysis;
+
+                        analysesToDisplay.push(migratedAnalysis);
+                    }
+
+                    // Remove the browser copy only after every migration succeeds
+                    // and this effect is still active.
+                    if (!cancelled) {
+                        localStorage.removeItem("careerpilot-saved-analyses");
+                    }
+                }
+
+                if (!cancelled) {
+                    migrationUserId.current = userId;
+                    setSavedAnalyses(analysesToDisplay);
+                    setIsLoaded(true);
+                }
+            } catch (error) {
+                console.error("Load analyses error:", error);
+
+                if (!cancelled) {
+                    setError(
+                        "Unable to load your saved analyses. Please refresh and try again."
+                    );
+                    setIsLoaded(true);
+                }
+            }
+        }
+
+        void loadAnalyses();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [sessionStatus, session?.user?.id]);
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -260,10 +333,23 @@ export default function JobDescriptionAnalyzer() {
         doc.save("careerpilot-job-analysis.pdf");
     }
 
-    function handleSaveAnalysis() {
+    async function handleSaveAnalysis() {
         if (!skillGap) {
             return;
         }
+
+        if (!isLoaded) {
+            setError("Please wait while your saved analyses load.");
+            return;
+        }
+
+        if (sessionStatus !== "authenticated") {
+            setError("Please sign in before saving an analysis.");
+            return;
+        }
+
+        setError("");
+        setSuccess("");
 
         const now = new Date().toISOString();
 
@@ -271,7 +357,7 @@ export default function JobDescriptionAnalyzer() {
             (analysis) => analysis.id === editingAnalysisId,
         );
 
-        const newAnalysis: SavedAnalysis = {
+        const analysisData: SavedAnalysis = {
             id: editingAnalysisId ?? crypto.randomUUID(),
             jobTitle: jobTitle.trim(),
             jobDescription,
@@ -283,22 +369,50 @@ export default function JobDescriptionAnalyzer() {
             updatedAt: now,
         };
 
-        setSavedAnalyses((previousAnalyses) => {
-            if (editingAnalysisId) {
-                return previousAnalyses.map((analysis) =>
-                    analysis.id === editingAnalysisId ? newAnalysis : analysis,
-                );
+        try {
+            const response = await fetch(
+                editingAnalysisId
+                    ? `/api/analyses/${editingAnalysisId}`
+                    : "/api/analyses",
+                {
+                    method: editingAnalysisId ? "PUT" : "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(analysisData),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error("Unable to save your analysis.");
             }
 
-            return [...previousAnalyses, newAnalysis];
-        });
+            const savedAnalysis =
+                await response.json() as SavedAnalysis;
 
-        setEditingAnalysisId(null);
-        setSuccess(
-            editingAnalysisId
-                ? "Analysis updated successfully."
-                : "Analysis saved successfully.",
-        );
+            setSavedAnalyses((previousAnalyses) => {
+                if (editingAnalysisId) {
+                    return previousAnalyses.map((analysis) =>
+                        analysis.id === editingAnalysisId
+                            ? savedAnalysis
+                            : analysis,
+                    );
+                }
+
+                return [savedAnalysis, ...previousAnalyses];
+            });
+
+            setEditingAnalysisId(null);
+
+            setSuccess(
+                editingAnalysisId
+                    ? "Analysis updated successfully."
+                    : "Analysis saved successfully.",
+            );
+        } catch (error) {
+            console.error("Save analysis error:", error);
+            setError("Unable to save your analysis. Please try again.");
+        }
     }
 
     const filteredAnalyses = savedAnalyses.filter((analysis) =>
@@ -309,14 +423,37 @@ export default function JobDescriptionAnalyzer() {
         selectedAnalysisIds.includes(analysis.id),
     );
 
-    function handleDeleteAnalysis(id: string) {
-        setSavedAnalyses((previousAnalyses) =>
-            previousAnalyses.filter((analysis) => analysis.id !== id),
-        );
+    async function handleDeleteAnalysis(id: string) {
+        if (!isLoaded || sessionStatus !== "authenticated") {
+            setError("Please wait until your saved analyses finish loading.");
+            return;
+        }
 
-        setSelectedAnalysisIds((previousIds) =>
-            previousIds.filter((selectedId) => selectedId !== id),
-        );
+        setError("");
+        setSuccess("");
+
+        try {
+            const response = await fetch(`/api/analyses/${id}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                throw new Error("Unable to delete analysis.");
+            }
+
+            setSavedAnalyses((previousAnalyses) =>
+                previousAnalyses.filter((analysis) => analysis.id !== id),
+            );
+
+            setSelectedAnalysisIds((previousIds) =>
+                previousIds.filter((selectedId) => selectedId !== id),
+            );
+
+            setSuccess("Analysis deleted successfully.");
+        } catch (error) {
+            console.error("Delete analysis error:", error);
+            setError("Unable to delete your analysis. Please try again.");
+        }
     }
 
     function handleToggleAnalysisSelection(id: string) {

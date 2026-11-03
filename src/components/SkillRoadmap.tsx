@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import type { SavedAnalysis } from "@/lib/jobAnalyzer";
 
 type SkillStatus = "Not Started" | "In Progress" | "Completed";
@@ -15,38 +16,100 @@ type SkillRoadmapProps = {
     analyses: SavedAnalysis[];
 };
 
-function getSkillStatusesSnapshot() {
-    return localStorage.getItem("careerpilot-skill-statuses") ?? "{}";
-}
-
-function getServerSkillStatusesSnapshot() {
-    return "{}";
-}
-
-function subscribeToSkillStatuses(callback: () => void) {
-    window.addEventListener("storage", callback);
-    window.addEventListener("careerpilot-skill-statuses-changed", callback);
-
-    return () => {
-        window.removeEventListener("storage", callback);
-        window.removeEventListener("careerpilot-skill-statuses-changed", callback);
-    };
-}
-
 export default function SkillRoadmap({ analyses }: SkillRoadmapProps) {
-    const storedStatuses = useSyncExternalStore(
-        subscribeToSkillStatuses,
-        getSkillStatusesSnapshot,
-        getServerSkillStatusesSnapshot,
-    );
+    const { data: session, status: sessionStatus } = useSession();
 
-    const skillStatuses = useMemo(() => {
-        try {
-            return JSON.parse(storedStatuses) as Record<string, SkillStatus>;
-        } catch {
-            return {};
+    const [skillStatuses, setSkillStatuses] = useState<
+        Record<string, SkillStatus>
+    >({});
+
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    useEffect(() => {
+        if (sessionStatus === "loading") {
+            return;
         }
-    }, [storedStatuses]);
+
+        if (sessionStatus === "unauthenticated" || !session?.user?.id) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear user-specific statuses when the session ends.
+            setSkillStatuses({});
+            setIsLoaded(true);
+            return;
+        }
+
+        let cancelled = false;
+        setIsLoaded(false);
+        setSkillStatuses({});
+
+        async function loadSkillStatuses() {
+            try {
+                const response = await fetch("/api/skill-statuses");
+
+                if (!response.ok) {
+                    throw new Error("Unable to load skill statuses.");
+                }
+
+                const databaseStatuses = await response.json() as {
+                    skillName: string;
+                    status: SkillStatus;
+                }[];
+
+                if (cancelled) return;
+
+                const statusesToDisplay: Record<string, SkillStatus> = {};
+
+                for (const item of databaseStatuses) {
+                    statusesToDisplay[item.skillName] = item.status;
+                }
+
+                const storedStatuses = localStorage.getItem(
+                    "careerpilot-skill-statuses",
+                );
+
+                if (storedStatuses) {
+                    const browserStatuses =
+                        JSON.parse(storedStatuses) as Record<string, SkillStatus>;
+
+                    for (const [skillName, status] of Object.entries(browserStatuses)) {
+                        const migrationResponse = await fetch("/api/skill-statuses", {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ skillName, status }),
+                        });
+
+                        if (!migrationResponse.ok) {
+                            throw new Error(`Unable to migrate status for ${skillName}.`);
+                        }
+
+                        statusesToDisplay[skillName] = status;
+                    }
+
+                    if (!cancelled) {
+                        localStorage.removeItem("careerpilot-skill-statuses");
+                    }
+                }
+
+                if (!cancelled) {
+                    setSkillStatuses(statusesToDisplay);
+                    setIsLoaded(true);
+                }
+            } catch (error) {
+                console.error("Load skill statuses error:", error);
+
+                if (!cancelled) {
+                    setIsLoaded(true);
+                }
+            }
+        }
+
+        void loadSkillStatuses();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [sessionStatus, session?.user?.id]);
 
     const skills = useMemo(() => {
         const skillCounts = new Map<string, number>();
@@ -158,24 +221,34 @@ export default function SkillRoadmap({ analyses }: SkillRoadmapProps) {
                                 </p>
                             </div>
 
-                            <select
+                            <select disabled={!isLoaded || sessionStatus !== "authenticated"}
                                 value={skill.status}
-                                onChange={(event) => {
+                                onChange={async (event) => {
                                     const newStatus = event.target.value as SkillStatus;
 
-                                    const updatedStatuses = {
-                                        ...skillStatuses,
+                                    setSkillStatuses((previousStatuses) => ({
+                                        ...previousStatuses,
                                         [skill.name]: newStatus,
-                                    };
+                                    }));
 
-                                    localStorage.setItem(
-                                        "careerpilot-skill-statuses",
-                                        JSON.stringify(updatedStatuses),
-                                    );
+                                    try {
+                                        const response = await fetch("/api/skill-statuses", {
+                                            method: "PUT",
+                                            headers: {
+                                                "Content-Type": "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                                skillName: skill.name,
+                                                status: newStatus,
+                                            }),
+                                        });
 
-                                    window.dispatchEvent(
-                                        new Event("careerpilot-skill-statuses-changed"),
-                                    );
+                                        if (!response.ok) {
+                                            throw new Error("Unable to update skill status.");
+                                        }
+                                    } catch (error) {
+                                        console.error("Update skill status error:", error);
+                                    }
                                 }}
                                 className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-white"
                             >
