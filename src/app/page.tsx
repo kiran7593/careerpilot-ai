@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import JobDescriptionAnalyzer from "@/components/JobDescriptionAnalyzer";
+import SignOutButton from "@/components/SignOutButton";
+import { useSession } from "next-auth/react";
 
 export default function Home() {
+  const { data: session, status } = useSession();
   const [jobDescription, setJobDescription] = useState("");
 
   return (
@@ -28,12 +31,39 @@ export default function Home() {
           </a>
         </div>
 
-        <a
-          href="#get-started"
-          className="rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-indigo-100"
-        >
-          Get started
-        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="#get-started"
+            className="rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-indigo-100"
+          >
+            Get started
+          </a>
+
+          {status === "loading" ? null : status === "authenticated" ? (
+            <>
+              <span className="hidden text-sm text-slate-400 sm:inline">
+                {session.user?.name || session.user?.email}
+              </span>
+              <SignOutButton />
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-300 transition hover:text-white"
+              >
+                Sign in
+              </Link>
+
+              <Link
+                href="/register"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
+              >
+                Create account
+              </Link>
+            </>
+          )}
+        </div>
       </nav>
 
       <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 pb-24 pt-16 lg:grid-cols-2 lg:px-8 lg:pb-32 lg:pt-24">
