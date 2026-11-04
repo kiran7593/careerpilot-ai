@@ -100,6 +100,13 @@ export async function PUT(request: Request) {
         }
 
         const validStatus = status as (typeof validStatuses)[number];
+        const prismaStatus = {
+            "Not Started": "NOT_STARTED",
+            "In Progress": "IN_PROGRESS",
+            "Completed": "COMPLETED",
+        } as const;
+
+        const databaseStatus = prismaStatus[validStatus];
 
         const skillStatus = await prisma.skillStatus.upsert({
             where: {
@@ -109,12 +116,12 @@ export async function PUT(request: Request) {
                 },
             },
             update: {
-                status: validStatus,
+                status: databaseStatus,
             },
             create: {
                 userId: user.id,
                 skillName,
-                status: validStatus,
+                status: databaseStatus,
             },
         });
 

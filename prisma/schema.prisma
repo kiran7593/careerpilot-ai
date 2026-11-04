@@ -7,6 +7,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SkillProgress {
+  NOT_STARTED @map("Not Started")
+  IN_PROGRESS @map("In Progress")
+  COMPLETED   @map("Completed")
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String?
@@ -41,7 +47,7 @@ model SkillStatus {
   id        String   @id @default(cuid())
   userId    String
   skillName String
-  status    String   @default("Not Started")
+  status    SkillProgress @default(NOT_STARTED)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
