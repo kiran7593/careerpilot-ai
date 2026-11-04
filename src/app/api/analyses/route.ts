@@ -2,6 +2,28 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/requireAuth";
 
+const validSkillCategories = [
+    "Languages",
+    "Frameworks",
+    "Backend & Data",
+    "Tools",
+];
+
+function isValidSkillMatch(skill: unknown): boolean {
+    if (!skill || typeof skill !== "object" || Array.isArray(skill)) {
+        return false;
+    }
+
+    const skillData = skill as Record<string, unknown>;
+
+    return (
+        typeof skillData.name === "string" &&
+        skillData.name.trim().length > 0 &&
+        typeof skillData.category === "string" &&
+        validSkillCategories.includes(skillData.category)
+    );
+}
+
 // GET: Retrieve only the signed-in user's analyses.
 export async function GET() {
     try {
@@ -46,7 +68,44 @@ export async function POST(request: Request) {
             );
         }
 
-        const body = await request.json();
+        let body: unknown;
+
+        try {
+            body = await request.json();
+        } catch {
+            return NextResponse.json(
+                { message: "Invalid JSON request body." },
+                { status: 400 }
+            );
+        }
+
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+            return NextResponse.json(
+                { message: "Invalid analysis data." },
+                { status: 400 }
+            );
+        }
+
+        const bodyData = body as Record<string, unknown>;
+
+        const allowedFields = [
+            "id",
+            "jobTitle",
+            "jobDescription",
+            "userSkills",
+            "matchingSkills",
+            "missingSkills",
+            "matchPercentage",
+            "createdAt",
+            "updatedAt",
+        ];
+
+        if (Object.keys(bodyData).some((key) => !allowedFields.includes(key))) {
+            return NextResponse.json(
+                { message: "Unexpected fields in request body." },
+                { status: 400 }
+            );
+        }
 
         const {
             id,
@@ -58,16 +117,23 @@ export async function POST(request: Request) {
             matchPercentage,
             createdAt,
             updatedAt,
-        } = body;
+        } = bodyData;
 
         if (
             (id !== undefined && (typeof id !== "string" || !id.trim())) ||
             typeof jobTitle !== "string" ||
             !jobTitle.trim() ||
+            jobTitle.length > 200 ||
             typeof jobDescription !== "string" ||
+            jobDescription.length > 20000 ||
             typeof userSkills !== "string" ||
+            userSkills.length > 5000 ||
             !Array.isArray(matchingSkills) ||
+            matchingSkills.length > 100 ||
+            !matchingSkills.every(isValidSkillMatch) ||
             !Array.isArray(missingSkills) ||
+            missingSkills.length > 100 ||
+            !missingSkills.every(isValidSkillMatch) ||
             typeof matchPercentage !== "number" ||
             !Number.isFinite(matchPercentage) ||
             matchPercentage < 0 ||
@@ -77,7 +143,6 @@ export async function POST(request: Request) {
             (updatedAt !== undefined &&
                 (typeof updatedAt !== "string" || Number.isNaN(Date.parse(updatedAt))))
         ) {
-
             return NextResponse.json(
                 { message: "Invalid analysis data." },
                 { status: 400 }
