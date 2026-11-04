@@ -8,15 +8,16 @@ datasource db {
 }
 
 model User {
-  id           String          @id @default(cuid())
+  id           String   @id @default(cuid())
   name         String?
-  email        String          @unique
+  email        String   @unique
   passwordHash String
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  analyses     SavedAnalysis[]
-  skillStatuses SkillStatus[]
+  analyses           SavedAnalysis[]
+  skillStatuses      SkillStatus[]
+  passwordResetToken PasswordResetToken?
 }
 
 model SavedAnalysis {
@@ -47,4 +48,16 @@ model SkillStatus {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, skillName])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
