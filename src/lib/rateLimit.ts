@@ -78,3 +78,15 @@ export async function checkRateLimit(
     ),
   };
 }
+
+export async function cleanupExpiredRateLimits(): Promise<number> {
+  const result = await prisma.rateLimitBucket.deleteMany({
+    where: {
+      expiresAt: {
+        lte: new Date(),
+      },
+    },
+  });
+
+  return result.count;
+}
