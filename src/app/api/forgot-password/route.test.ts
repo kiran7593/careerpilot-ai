@@ -103,6 +103,46 @@ describe("Forgot Password API", () => {
         expect(mockSendPasswordResetEmail).not.toHaveBeenCalled();
     });
 
+    it("blocks requests that exceed the per-email rate limit", async () => {
+        mockCheckRateLimit
+            .mockResolvedValueOnce({
+                allowed: true,
+                remaining: 4,
+                retryAfterSeconds: 900,
+            })
+            .mockResolvedValueOnce({
+                allowed: false,
+                remaining: 0,
+                retryAfterSeconds: 300,
+            });
+
+        const response = await POST(
+            createRequest(
+                JSON.stringify({ email: "kiran@example.com" })
+            )
+        );
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({
+            message: successMessage,
+        });
+
+        expect(mockCheckRateLimit).toHaveBeenCalledTimes(2);
+
+        expect(mockCheckRateLimit).toHaveBeenNthCalledWith(
+            2,
+            "kiran@example.com",
+            "forgot-password-email",
+            {
+                limit: 3,
+                windowMs: 15 * 60 * 1000,
+            }
+        );
+
+        expect(mockFindUnique).not.toHaveBeenCalled();
+        expect(mockSendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+
     it("does not expose email provider errors to the user", async () => {
         mockSendPasswordResetEmail.mockResolvedValue({
             data: null,

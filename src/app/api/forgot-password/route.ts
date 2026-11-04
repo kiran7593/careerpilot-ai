@@ -80,6 +80,21 @@ export async function POST(request: Request) {
             );
         }
 
+        const emailRateLimit = await checkRateLimit(
+            email,
+            "forgot-password-email",
+            {
+                limit: 3,
+                windowMs: 15 * 60 * 1000,
+            }
+        );
+
+        if (!emailRateLimit.allowed) {
+            return NextResponse.json(
+                { message: successMessage }
+            );
+        }
+
         const user = await prisma.user.findUnique({
             where: { email },
             select: { id: true },
