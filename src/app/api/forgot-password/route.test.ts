@@ -1,3 +1,4 @@
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -6,12 +7,16 @@ const {
     mockCreate,
     mockTransaction,
     mockGenerateResetToken,
+    mockSendPasswordResetEmail,
+    mockCheckRateLimit,
 } = vi.hoisted(() => ({
     mockFindUnique: vi.fn(),
     mockDeleteMany: vi.fn(),
     mockCreate: vi.fn(),
     mockTransaction: vi.fn(),
     mockGenerateResetToken: vi.fn(),
+    mockSendPasswordResetEmail: vi.fn(),
+    mockCheckRateLimit: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -29,6 +34,14 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/passwordReset", () => ({
     generateResetToken: mockGenerateResetToken,
+}));
+
+vi.mock("@/lib/resend", () => ({
+    sendPasswordResetEmail: mockSendPasswordResetEmail,
+}));
+
+vi.mock("@/lib/rateLimit", () => ({
+    checkRateLimit: mockCheckRateLimit,
 }));
 
 import { POST } from "./route";
@@ -49,6 +62,14 @@ const successMessage =
 describe("Forgot Password API", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.stubEnv("NEXTAUTH_URL", "http://localhost:3000");
+        vi.stubEnv("APP_URL", "https://careerpilot.example.com");
+
+        mockCheckRateLimit.mockResolvedValue({
+            allowed: true,
+            remaining: 4,
+            retryAfterSeconds: 900,
+        });
 
         mockFindUnique.mockResolvedValue({ id: "user-123" });
         mockDeleteMany.mockResolvedValue({ count: 0 });
@@ -59,6 +80,46 @@ describe("Forgot Password API", () => {
             tokenHash: "secure-token-hash",
             expiresAt: new Date("2026-12-01T12:15:00.000Z"),
         });
+        mockSendPasswordResetEmail.mockResolvedValue({
+            data: { id: "email-123" },
+            error: null,
+        });
+    });
+
+    it("blocks requests that exceed the rate limit", async () => {
+        mockCheckRateLimit.mockResolvedValue({
+            allowed: false,
+            remaining: 0,
+            retryAfterSeconds: 300,
+        });
+
+        const response = await POST(
+            createRequest(JSON.stringify({ email: "kiran@example.com" }))
+        );
+
+        expect(response.status).toBe(429);
+        expect(response.headers.get("Retry-After")).toBe("300");
+        expect(mockFindUnique).not.toHaveBeenCalled();
+        expect(mockSendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+
+    it("does not expose email provider errors to the user", async () => {
+        mockSendPasswordResetEmail.mockResolvedValue({
+            data: null,
+            error: { message: "Email provider unavailable" },
+        });
+
+        const response = await POST(
+            createRequest(JSON.stringify({ email: "kiran@example.com" }))
+        );
+
+        expect(response.status).toBe(500);
+
+        const responseBody = await response.json();
+
+        expect(JSON.stringify(responseBody)).not.toContain(
+            "Email provider unavailable"
+        );
     });
 
     it("rejects malformed JSON", async () => {
@@ -133,6 +194,7 @@ describe("Forgot Password API", () => {
             message: successMessage,
         });
         expect(mockTransaction).not.toHaveBeenCalled();
+        expect(mockSendPasswordResetEmail).not.toHaveBeenCalled();
     });
 
     it("creates a hashed reset token for an existing account", async () => {
@@ -155,12 +217,18 @@ describe("Forgot Password API", () => {
         });
 
         expect(mockTransaction).toHaveBeenCalledTimes(1);
+
+        expect(mockSendPasswordResetEmail).toHaveBeenCalledWith(
+            "kiran@example.com",
+            "https://careerpilot.example.com/reset-password?token=secure-reset-token"
+        );
     });
 
     it("does not expose the reset token outside development", async () => {
         const originalNodeEnv = process.env.NODE_ENV;
 
         vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("APP_URL", "https://careerpilot.example.com");
 
         try {
             const response = await POST(
@@ -178,6 +246,7 @@ describe("Forgot Password API", () => {
 
     it("returns a reset URL in development", async () => {
         vi.stubEnv("NODE_ENV", "development");
+        vi.stubEnv("APP_URL", "http://localhost:3000");
 
         try {
             const response = await POST(

@@ -1,3 +1,4 @@
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -7,6 +8,7 @@ const {
   mockTransaction,
   mockHashResetToken,
   mockBcryptHash,
+  mockCheckRateLimit,
 } = vi.hoisted(() => ({
   mockFindUnique: vi.fn(),
   mockDeleteMany: vi.fn(),
@@ -14,6 +16,7 @@ const {
   mockTransaction: vi.fn(),
   mockHashResetToken: vi.fn(),
   mockBcryptHash: vi.fn(),
+  mockCheckRateLimit: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -32,6 +35,10 @@ vi.mock("bcryptjs", () => ({
   },
 }));
 
+vi.mock("@/lib/rateLimit", () => ({
+  checkRateLimit: mockCheckRateLimit,
+}));
+
 import { POST } from "./route";
 
 function createRequest(body: string): Request {
@@ -47,6 +54,12 @@ function createRequest(body: string): Request {
 describe("Reset Password API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    mockCheckRateLimit.mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      retryAfterSeconds: 900,
+    });
 
     mockHashResetToken.mockReturnValue("hashed-reset-token");
     mockBcryptHash.mockResolvedValue("new-password-hash");
@@ -70,6 +83,28 @@ describe("Reset Password API", () => {
         },
       })
     );
+  });
+
+  it("blocks requests that exceed the rate limit", async () => {
+    mockCheckRateLimit.mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      retryAfterSeconds: 300,
+    });
+
+    const response = await POST(
+      createRequest(
+        JSON.stringify({
+          token: "valid-token",
+          password: "new-password-123",
+        })
+      )
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("300");
+    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(mockBcryptHash).not.toHaveBeenCalled();
   });
 
   it("rejects malformed JSON", async () => {

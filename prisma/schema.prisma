@@ -61,3 +61,13 @@ model PasswordResetToken {
 
   @@index([expiresAt])
 }
+
+model RateLimitBucket {
+  key             String   @id
+  count           Int      @default(1)
+  windowStartedAt DateTime
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([expiresAt])
+}

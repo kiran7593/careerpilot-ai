@@ -1,10 +1,39 @@
+
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { hashResetToken } from "@/lib/passwordReset";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
   try {
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const clientIp =
+      forwardedFor?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+
+    const rateLimit = await checkRateLimit(
+      clientIp,
+      "reset-password",
+      {
+        limit: 10,
+        windowMs: 15 * 60 * 1000,
+      }
+    );
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { message: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
+    }
+
     let body: unknown;
 
     try {
