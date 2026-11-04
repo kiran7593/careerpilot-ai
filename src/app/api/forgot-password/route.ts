@@ -9,10 +9,12 @@ const successMessage =
 
 export async function POST(request: Request) {
     try {
+        const realIp = request.headers.get("x-real-ip");
         const forwardedFor = request.headers.get("x-forwarded-for");
+
         const clientIp =
+            realIp?.trim() ||
             forwardedFor?.split(",")[0]?.trim() ||
-            request.headers.get("x-real-ip") ||
             "unknown";
 
         const rateLimit = await checkRateLimit(
