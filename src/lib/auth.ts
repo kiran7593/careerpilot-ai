@@ -20,7 +20,14 @@ export const authOptions: NextAuthOptions = {
       },
 
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (
+          typeof credentials?.email !== "string" ||
+          typeof credentials?.password !== "string" ||
+          !credentials.email.trim() ||
+          !credentials.password ||
+          credentials.email.length > 254 ||
+          Buffer.byteLength(credentials.password, "utf8") > 72
+        ) {
           return null;
         }
 
