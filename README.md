@@ -6,6 +6,10 @@ An AI-powered career development platform that helps users analyze job descripti
 
 **GitHub Repository:** [kiran7593/careerpilot-ai](https://github.com/kiran7593/careerpilot-ai)
 
+## Screenshots
+
+![CareerPilot AI Dashboard](./screenshots/careerpilot-dashboard.png)
+
 ## Features
 
 - **Job Description Analysis** — Analyze job descriptions and identify relevant skills and requirements.
