@@ -173,7 +173,7 @@ Potential areas for future enhancement include:
 
 ## Author
 
-**Junior Web Developer**
+Kiran Persaud
 
 GitHub: [@kiran7593](https://github.com/kiran7593)
 
