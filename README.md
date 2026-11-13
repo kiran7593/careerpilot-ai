@@ -8,7 +8,7 @@ An AI-powered career development platform that helps users analyze job descripti
 
 ## Screenshots
 
-![CareerPilot AI Dashboard](./screenshots/careerpilot-dashboard.png)
+![CareerPilot AI Dashboard](./careerpilot-dashboard.png)
 
 ## Features
 
